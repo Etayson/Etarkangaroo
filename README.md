@@ -1,4 +1,4 @@
-# Etarkangaroo
+# Etarkangaroo (windows only)
 Gpu math is mostly based on JeanLucPons code https://github.com/JeanLucPons/Kangaroo/blob/master/GPU/GPUMath.h<br/>
 But with some additions and modifications.<br/>
 Supported GPU architecture >=SM75<br/>
@@ -30,3 +30,5 @@ Usage:<br/>
 Example:
 Etarkangaroo -dp 16 -d 0 -grid 44,64 -wf htwork -kf kangaroowork -o result.txt -wi 300 -wsplit -wmerge -rb 80000000000000000000 -re ffffffffffffffffffff -pub 037e1238f7b1ce757df94faa9a2eb261bf0aeb9f84dbf81212104e78931c2a19dc
 ```
+You can use server/client app for Etarkangaroo https://github.com/Etayson/Server-Client-apps-for-Etarkangaroo
+Purebasic v.5.31 required for compilation
