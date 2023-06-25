@@ -11,7 +11,9 @@ During the merging, you possible to find the desired key, and also the merger fi
 So you not need to keep all hashtable in RAM.<br/>
 Saving kangaroos, merging does not impact speed hashing.<br/>
 Only saving hashtable impact speed.<br/>
-
+Good -grid params:  
+- for GTX 1660super 88,128 with PL60% speed 890Mkey/s  
+- for RTX 3070 92,256 with PL56% speed 1535Mkey/s  
 Usage:<br/>
 ```
 -wmerge    automaticly merge current ht work with main ht (works together with -wsplit)
