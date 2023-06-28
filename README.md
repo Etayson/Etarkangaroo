@@ -5,12 +5,11 @@ Supported GPU architecture >=SM75<br/>
 Futures: <br/>
 Range limited to 192bit<br/>
 Initial kangaroos generation happens on GPU which is slightly faster.<br/>
-You can save kangaroos after certain time interval and with saving hashtable you can be sure that after restart program you will continue your job.<br/>
+You can save kangaroos after certain time interval and with saving hashtable you can be sure that after restart program will continue job.<br/>
 It is possible to reset and save the hashtable after a certain time interval, followed by automatic merging into a single hashtable.<br/>
 During the merging, you possible to find the desired key, and also the merger fixes the dead kangaroos and signals the GPU to reset them.<br/>
 So you not need to keep all hashtable in RAM.<br/>
-Saving kangaroos, merging does not impact speed hashing.<br/>
-Only saving hashtable impact speed.<br/>
+Saving kangaroos, hashtable and merging does not impact speed hashing.<br/>
 Good -grid params:  
 - for GTX 1660super 88,128 with PL60% speed 890Mkey/s  
 - for RTX 3070 92,256 with PL56% speed 1535Mkey/s  
