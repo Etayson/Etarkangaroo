@@ -1,7 +1,7 @@
 # Etarkangaroo (windows only)
 Gpu math is mostly based on JeanLucPons code https://github.com/JeanLucPons/Kangaroo/blob/master/GPU/GPUMath.h<br/>
 But with some additions and modifications.<br/>
-Supported GPU architecture >=SM75<br/>
+v2.3 supported GPU architecture >=SM35<br/>
 Futures: <br/>
 Range limited to 192bit<br/>
 Initial kangaroos generation happens on GPU which is slightly faster.<br/>
