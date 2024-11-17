@@ -4324,7 +4324,7 @@ PrintN("")
 PrintN("Total time "+getElapsedTime(Date()-begintime))   
 Delay(2000)
 PrintN("cuda finished ok")
-saveResult()
+;saveResult()
 exit("")
 
 ;use AnyToData + 5D2057
