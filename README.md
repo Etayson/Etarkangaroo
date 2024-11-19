@@ -29,6 +29,7 @@ Usage:<br/>
 -wf        ht working file for saving
 -wi        timer interval for autosaving ht/kangaroos
 -m         limit count
+-type      generate type of kangaroos, 0 - tame, 1 - wild, 2 - both (default)  
 Example:
 Etarkangaroo -dp 16 -d 0 -grid 44,64 -wf htwork -kf kangaroowork -o result.txt -wi 300 -wsplit -wmerge -rb 80000000000000000000 -re ffffffffffffffffffff -pub 037e1238f7b1ce757df94faa9a2eb261bf0aeb9f84dbf81212104e78931c2a19dc
 ```
