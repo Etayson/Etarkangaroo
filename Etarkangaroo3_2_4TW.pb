@@ -1,4 +1,4 @@
-﻿EnableExplicit
+EnableExplicit
 IncludeFile "lib\Curve64.pb"
 CompilerIf #PB_Compiler_Unicode
   Debug" switch to Ascii mode"
@@ -242,12 +242,14 @@ Define HT_date
 Define HT_items
 Define HT_mask
 Define HT_total_items = 0
+Define Sum_HT_total_items=0
 Define HT_max_collisions = 0
 Define HT_items_with_collisions = 0
 Define HT_total_hashes = 0
 Define initHTsize=1
 Define  expop.d
 Define driverVersion.i, NewList checker.checkerStructure()
+Define isFinded = #False
 
 checkrMutex = CreateMutex()
 TableMutex = CreateMutex()
@@ -925,7 +927,7 @@ Procedure GetProblemIDX()
   If problemcounter
     LockMutex(calcMutex)
     PrintN("")
-    PrintN("Found problem kangaroos: "+Str(problemcounter)+" "+a$)  
+    PrintN("Found problem kangaroos: "+Str(problemcounter))  
     UnlockMutex(calcMutex)
   EndIf
   FreeMap(gpu_local())
@@ -1259,7 +1261,7 @@ Procedure GenKangarooDirect(*DeviceInitAptr, idx.i, blockDim.w, threadDim.w, *GT
   Shared SETTINGS
   
   ;*initAptr = DeviceReturnNumber+paramsize
-  If (SETTINGS\KangTypes = #ALL And idx%2) Or SETTINGS\KangTypes = #WILD
+  If (SETTINGS\KangTypes = #ALL And idx%2= #WILD) Or SETTINGS\KangTypes = #WILD
     ;WILD
     GenWildKangaroo(*GTable, *pt + 64, *pt, *pt+32)    
   Else
@@ -1741,13 +1743,15 @@ Procedure writeDataToFile(fileID, *buffFrom, sz, *tempbuffer, isFinal = 0, isRes
 ProcedureReturn sz
 EndProcedure
 
-Procedure closeAllMergeFiles()
+Procedure closeAllMergeFiles(isSave = 1)
   CloseFile(#File1)
   CloseFile(#File2)
-  CloseFile(#FileT)
+  If isSave
+    CloseFile(#FileT)
+  EndIf
 EndProcedure
 
-Procedure mergeHTFilesNew(filename1$, filename2$, filenameTarget$, silent=0)
+Procedure mergeHTFilesNew(filename1$, filename2$, filenameTarget$, silent=0, isSave = 1)
   
   Protected *MemoryBuffer0, *MemoryBuffer1, *MemoryBuffer2, *headerbuff1,  *headerbuff2, batchsize, i, hashcurrent, hash1, hash2, sz1, sz2, szT, sz1_2, lengthFile1, lengthFile2, pos1, pos2, _res
   Protected dpcount1, dpcount2, dpcountT, endfile, identify1, identify2, CollisionFlag, dead, isOk, copypos, *tamedistance, *wilddistance
@@ -1818,10 +1822,12 @@ If Hex(ValueL(*headerbuff1))<>#HEAD
   exit("Wrong header format")
 EndIf
 
-If Not CreateFile(#FileT, filenameTarget$+".temp" )  
-  CloseFile(#File1)
-  CloseFile(#File2)
-  exit("Can`t creat "+filenameTarget$+".temp")     
+If isSave
+  If Not CreateFile(#FileT, filenameTarget$+".temp" )  
+    CloseFile(#File1)
+    CloseFile(#File2)
+    exit("Can`t creat "+filenameTarget$+".temp")     
+  EndIf
 EndIf
 
 dpsize1=Valuel(*headerbuff1 + 8)
@@ -1879,11 +1885,12 @@ If silent=0
   PrintN( "Shifted Range half     :"+Curve::m_gethex32(*ShiftedRangeEhalf_l))
 EndIf
 
-If writeDataToFile(#FileT, *headerbuff1, #HEADERSIZE, *tempFilebuffer, 0, 0)<>#HEADERSIZE
-  closeAllMergeFiles()
-  exit("Error during writing file")
+If isSave
+  If writeDataToFile(#FileT, *headerbuff1, #HEADERSIZE, *tempFilebuffer, 0, 0)<>#HEADERSIZE
+    closeAllMergeFiles(isSave)
+    exit("Error during writing file")
+  EndIf
 EndIf
-      
       
 lengthFile1 = Lof(#File1)
 lengthFile2 = Lof(#File2)
@@ -1893,7 +1900,7 @@ pos2 = #HEADERSIZE-1
 
 If pos1 + 8<lengthFile1
   If ReadData(#File1, *MemoryBuffer1, 8)<>8
-    closeAllMergeFiles()
+    closeAllMergeFiles(isSave)
     exit("Error during reading file")
   EndIf
   hash1 = ValueL(*MemoryBuffer1)
@@ -1901,22 +1908,22 @@ If pos1 + 8<lengthFile1
   pos1+8  
   If pos1 + sz1 * #HashTableSizeItems < lengthFile1    
     If ReadData(#File1, *MemoryBuffer1 + 8, sz1 * #HashTableSizeItems) <> sz1 * #HashTableSizeItems   
-      closeAllMergeFiles()
+      closeAllMergeFiles(isSave)
       exit("Error during reading file")
     EndIf 
     pos1 + sz1 * #HashTableSizeItems 
   Else
-    closeAllMergeFiles()
+    closeAllMergeFiles(isSave)
     exit("Unexpected end of file")
   EndIf
 Else
-  closeAllMergeFiles()
+  closeAllMergeFiles(isSave)
   exit("File empty")
 EndIf
 
 If pos2 + 8<lengthFile2
   If ReadData(#File2, *MemoryBuffer2, 8)<>8
-    closeAllMergeFiles()
+    closeAllMergeFiles(isSave)
     exit("Error during reading file")
   EndIf
   hash2 = ValueL(*MemoryBuffer2)
@@ -1924,16 +1931,16 @@ If pos2 + 8<lengthFile2
   pos2+8  
   If pos2 + sz2 * #HashTableSizeItems<lengthFile2    
     If ReadData(#File2, *MemoryBuffer2 + 8, sz2 * #HashTableSizeItems) <> sz2 * #HashTableSizeItems   
-      closeAllMergeFiles()
+      closeAllMergeFiles(isSave)
       exit("Error during reading file")
     EndIf 
     pos2 + sz2 * #HashTableSizeItems 
   Else
-    closeAllMergeFiles()
+    closeAllMergeFiles(isSave)
     exit("Unexpected end of file")
   EndIf
 Else
-  closeAllMergeFiles()
+  closeAllMergeFiles(isSave)
   exit("File empty")
 EndIf
 
@@ -2031,7 +2038,7 @@ While endfile=0 And CollisionFlag=0
             PrintN("")
             PrintN("Merging aborted")
           Else
-            closeAllMergeFiles()
+            closeAllMergeFiles(isSave)
             exit("False collision")
           EndIf
         Else
@@ -2060,15 +2067,17 @@ While endfile=0 And CollisionFlag=0
       EndIf
     Until isOk = 1     
     If CollisionFlag=0
-      If writeDataToFile(#FileT, *MemoryBuffer1, sz1_2 * #HashTableSizeItems + 8, *tempFilebuffer, 0, 0)<>sz1_2 * #HashTableSizeItems + 8
-        closeAllMergeFiles()
-        exit("Error during writing file")
+      If isSave
+        If writeDataToFile(#FileT, *MemoryBuffer1, sz1_2 * #HashTableSizeItems + 8, *tempFilebuffer, 0, 0)<>sz1_2 * #HashTableSizeItems + 8
+          closeAllMergeFiles(isSave)
+          exit("Error during writing file")
+        EndIf
       EndIf
       dpcountT + sz1_2
       
       If pos1 + 8<lengthFile1
         If ReadData(#File1, *MemoryBuffer1, 8)<>8
-          closeAllMergeFiles()
+          closeAllMergeFiles(isSave)
           exit("Error during reading file")
         EndIf
         hash1 = ValueL(*MemoryBuffer1)
@@ -2076,12 +2085,12 @@ While endfile=0 And CollisionFlag=0
         pos1+8  
         If pos1 + sz1 * #HashTableSizeItems<lengthFile1          
           If ReadData(#File1, *MemoryBuffer1 + 8, sz1 * #HashTableSizeItems) <> sz1 * #HashTableSizeItems   
-            closeAllMergeFiles()
+            closeAllMergeFiles(isSave)
             exit("Error during reading file")
           EndIf 
           pos1 + sz1 * #HashTableSizeItems 
         Else
-          closeAllMergeFiles()
+          closeAllMergeFiles(isSave)
           exit("Unexpected end of file1_1 "+Hex(hash2))
         EndIf
       Else
@@ -2090,7 +2099,7 @@ While endfile=0 And CollisionFlag=0
       
       If pos2 + 8<lengthFile2
         If ReadData(#File2, *MemoryBuffer2, 8)<>8
-          closeAllMergeFiles()
+          closeAllMergeFiles(isSave)
           exit("Error during reading file")
         EndIf
         hash2 = ValueL(*MemoryBuffer2)
@@ -2098,12 +2107,12 @@ While endfile=0 And CollisionFlag=0
         pos2+8  
         If pos2 + sz2 * #HashTableSizeItems<lengthFile2          
           If ReadData(#File2, *MemoryBuffer2 + 8, sz2 * #HashTableSizeItems) <> sz2 * #HashTableSizeItems   
-            closeAllMergeFiles()
+            closeAllMergeFiles(isSave)
             exit("Error during reading file")
           EndIf 
           pos2 + sz2 * #HashTableSizeItems 
         Else
-          closeAllMergeFiles()
+          closeAllMergeFiles(isSave)
           exit("Unexpected end of file2_1 "+Hex(hash2))
         EndIf
       Else
@@ -2113,15 +2122,17 @@ While endfile=0 And CollisionFlag=0
   Else
     ;ht1 < ht2 
     If _res = 1
-      If writeDataToFile(#FileT, *MemoryBuffer1, sz1 * #HashTableSizeItems + 8, *tempFilebuffer, 0, 0)<>sz1 * #HashTableSizeItems + 8
-        closeAllMergeFiles()
-        exit("Error during writing file")
+      If isSave
+        If writeDataToFile(#FileT, *MemoryBuffer1, sz1 * #HashTableSizeItems + 8, *tempFilebuffer, 0, 0)<>sz1 * #HashTableSizeItems + 8
+          closeAllMergeFiles(isSave)
+          exit("Error during writing file")
+        EndIf
       EndIf
       dpcountT + sz1
       
       If pos1 + 8<lengthFile1
         If ReadData(#File1, *MemoryBuffer1, 8)<>8
-          closeAllMergeFiles()
+          closeAllMergeFiles(isSave)
           exit("Error during reading file")
         EndIf
         hash1 = ValueL(*MemoryBuffer1)
@@ -2129,12 +2140,12 @@ While endfile=0 And CollisionFlag=0
         pos1+8  
         If pos1 + sz1 * #HashTableSizeItems<lengthFile1          
           If ReadData(#File1, *MemoryBuffer1 + 8, sz1 * #HashTableSizeItems) <> sz1 * #HashTableSizeItems   
-            closeAllMergeFiles()
+            closeAllMergeFiles(isSave)
             exit("Error during reading file")
           EndIf 
           pos1 + sz1 * #HashTableSizeItems 
         Else
-          closeAllMergeFiles()
+          closeAllMergeFiles(isSave)
           exit("Unexpected end of file1_2 "+Hex(hash1))
         EndIf
       Else
@@ -2143,15 +2154,17 @@ While endfile=0 And CollisionFlag=0
       
     Else
       ;ht1 > ht2 
-      If writeDataToFile(#FileT, *MemoryBuffer2, sz2 * #HashTableSizeItems + 8, *tempFilebuffer, 0, 0)<>sz2 * #HashTableSizeItems + 8
-        closeAllMergeFiles()
-        exit("Error during writing file")
+      If isSave
+        If writeDataToFile(#FileT, *MemoryBuffer2, sz2 * #HashTableSizeItems + 8, *tempFilebuffer, 0, 0)<>sz2 * #HashTableSizeItems + 8
+          closeAllMergeFiles(isSave)
+          exit("Error during writing file")
+        EndIf
       EndIf
       dpcountT + sz2
       
       If pos2 + 8<lengthFile2
         If ReadData(#File2, *MemoryBuffer2, 8)<>8
-          closeAllMergeFiles()
+          closeAllMergeFiles(isSave)
           exit("Error during reading file")
         EndIf
         hash2 = ValueL(*MemoryBuffer2)
@@ -2159,12 +2172,12 @@ While endfile=0 And CollisionFlag=0
         pos2+8  
         If pos2 + sz2 * #HashTableSizeItems<lengthFile2          
           If ReadData(#File2, *MemoryBuffer2 + 8, sz2 * #HashTableSizeItems) <> sz2 * #HashTableSizeItems   
-            closeAllMergeFiles()
+            closeAllMergeFiles(isSave)
             exit("Error during reading file")
           EndIf 
           pos2 + sz2 * #HashTableSizeItems 
         Else
-          closeAllMergeFiles()
+          closeAllMergeFiles(isSave)
           exit("Unexpected end of file2_2 "+Hex(hash2))
         EndIf
       Else
@@ -2177,19 +2190,21 @@ Wend
   
  
   
-If  endfile  
+If  endfile  And isSave
   If endfile=1
     ;first file end, copy rest of second file to target
     Repeat
-      If writeDataToFile(#FileT, *MemoryBuffer2, sz2 * #HashTableSizeItems + 8, *tempFilebuffer, 0, 0)<>sz2 * #HashTableSizeItems + 8
-        closeAllMergeFiles()
-        exit("Error during writing file")
+      If isSave
+        If writeDataToFile(#FileT, *MemoryBuffer2, sz2 * #HashTableSizeItems + 8, *tempFilebuffer, 0, 0)<>sz2 * #HashTableSizeItems + 8
+          closeAllMergeFiles(isSave)
+          exit("Error during writing file")
+        EndIf
       EndIf
       dpcountT + sz2
       
       If pos2 + 8<lengthFile2
         If ReadData(#File2, *MemoryBuffer2, 8)<>8
-          closeAllMergeFiles()
+          closeAllMergeFiles(isSave)
           exit("Error during reading file")
         EndIf
         hash2 = ValueL(*MemoryBuffer2)
@@ -2197,12 +2212,12 @@ If  endfile
         pos2+8  
         If pos2 + sz2 * #HashTableSizeItems<lengthFile2          
           If ReadData(#File2, *MemoryBuffer2 + 8, sz2 * #HashTableSizeItems) <> sz2 * #HashTableSizeItems   
-            closeAllMergeFiles()
+            closeAllMergeFiles(isSave)
             exit("Error during reading file")
           EndIf 
           pos2 + sz2 * #HashTableSizeItems 
         Else
-          closeAllMergeFiles()
+          closeAllMergeFiles(isSave)
           exit("Unexpected end of file")
         EndIf
       Else        
@@ -2213,15 +2228,17 @@ If  endfile
     If endfile=2
       ;second file end, copy rest of first file to target
       Repeat
-        If writeDataToFile(#FileT, *MemoryBuffer1, sz1 * #HashTableSizeItems + 8, *tempFilebuffer, 0, 0)<>sz1 * #HashTableSizeItems + 8
-          closeAllMergeFiles()
-          exit("Error during writing file")
+        If isSave
+          If writeDataToFile(#FileT, *MemoryBuffer1, sz1 * #HashTableSizeItems + 8, *tempFilebuffer, 0, 0)<>sz1 * #HashTableSizeItems + 8
+            closeAllMergeFiles(isSave)
+            exit("Error during writing file")
+          EndIf
         EndIf
         dpcountT + sz1
         
         If pos1 + 8<lengthFile1
           If ReadData(#File1, *MemoryBuffer1, 8)<>8
-            closeAllMergeFiles()
+            closeAllMergeFiles(isSave)
             exit("Error during reading file")
           EndIf
           hash1 = ValueL(*MemoryBuffer1)
@@ -2229,12 +2246,12 @@ If  endfile
           pos1+8  
           If pos1 + sz1 * #HashTableSizeItems<lengthFile1          
             If ReadData(#File1, *MemoryBuffer1 + 8, sz1 * #HashTableSizeItems) <> sz1 * #HashTableSizeItems   
-              closeAllMergeFiles()
+              closeAllMergeFiles(isSave)
               exit("Error during reading file")
             EndIf 
             pos1 + sz1 * #HashTableSizeItems 
           Else
-            closeAllMergeFiles()
+            closeAllMergeFiles(isSave)
             exit("Unexpected end of file")
           EndIf
         Else
@@ -2246,22 +2263,24 @@ If  endfile
   EndIf
 EndIf
 ;FINAL, write rest bytes from buffer to file
-writeDataToFile(#FileT, 0, 0, *tempFilebuffer, 1, 0)
-
+If isSave
+  writeDataToFile(#FileT, 0, 0, *tempFilebuffer, 1, 0)
+EndIf
 ;set new DPcount
-FileSeek(#FileT, 148)
-WriteInteger(#FileT, dpcountT)
-WriteInteger(#FileT, deadcount1 + deadcount2)
-WriteInteger(#FileT, timecount1 + timecount2)
-
-closeAllMergeFiles()
+If isSave
+  FileSeek(#FileT, 148)
+  WriteInteger(#FileT, dpcountT)
+  WriteInteger(#FileT, deadcount1 + deadcount2)
+  WriteInteger(#FileT, timecount1 + timecount2)
+EndIf
+closeAllMergeFiles(isSave)
 
 FreeMemory(*tempFilebuffer)
 FreeMemory(*MemoryBuffer0)
 FreeMemory(*headerbuff1)
 FreeMemory(*temp)
 If CollisionFlag=0
-  If dpcountT<>(dpcount1 + dpcount2 - dead)
+  If dpcountT<>(dpcount1 + dpcount2 - dead) And isSave
     PrintN("")
     exit("Expected DPs:"+Str(dpcount1 + dpcount2 - dead)+" but saved:"+Str(dpcountT))
     DeleteFile(filenameTarget$+".temp" ,#PB_FileSystem_Force)
@@ -2278,17 +2297,19 @@ If CollisionFlag=0
     Print(#ESC$ + "[1K") 
     Print(#ESC$ + "[0K");
     Print(#CR$)
-    PrintN("------------ Merge summary ------------")
+    PrintN("------------ Merge summary ("+Str(isSave)+") ------------")
     PrintN("Saved DPs: "+Str(dpcountT)+" 2^"+StrD(Log(dpcountT)/Log(2),2) + filesizeTargetFile$ +" in "+Str((ElapsedMilliseconds()-starttime)/1000)+"s")
     PrintN("Skiped DPs during merging: "+Str(dead))
     PrintN("Total dead: "+Str(deadcount1 + deadcount2))
     PrintN("Avg speed: ~"+StrD( Pow(2, (dpsize1 + Log(dpcountT)/Log(2)) - Log(timecount1 + timecount2)/Log(2) - 20) ,2)+"Mkeys/s")
     PrintN("Time count: "+getElapsedTime(timecount1 + timecount2))
     UnlockMutex(calcMutex)
-    If FileSize(filenameTarget$)>0
-      DeleteFile(filenameTarget$ ,#PB_FileSystem_Force)
+    If isSave
+      If FileSize(filenameTarget$)>0
+        DeleteFile(filenameTarget$ ,#PB_FileSystem_Force)
+      EndIf
+      RenameFile(filenameTarget$+".temp", filenameTarget$)
     EndIf
-    RenameFile(filenameTarget$+".temp", filenameTarget$)
   EndIf
 Else
   DeleteFile(filenameTarget$+".temp" ,#PB_FileSystem_Force)
@@ -2298,8 +2319,8 @@ ProcedureReturn CollisionFlag
 EndProcedure
 
 Procedure mergeThread(*merge.mergestructure)
-  Protected filename1$, filename2$, filenameTarget$
-  Shared mergeFlag, problemsz
+  Protected filename1$, filename2$, filenameTarget$, isSave=1
+  Shared mergeFlag, problemsz, SETTINGS, isFinded
   
   mergeFlag = 1  
   
@@ -2307,11 +2328,16 @@ Procedure mergeThread(*merge.mergestructure)
   filename2$ = *merge\filename2$ 
   filenameTarget$ = *merge\filenameTarget$
   
-  If mergeHTFilesNew(filename1$, filename2$, filenameTarget$, 1)=0 ;mean no collision
+  If SETTINGS\KangTypes=#WILD
+    isSave=0
+  EndIf
+  If mergeHTFilesNew(filename1$, filename2$, filenameTarget$, 1, isSave)=0 ;mean no collision
     DeleteFile(filename2$ ,#PB_FileSystem_Force)
     If problemsz
       GetProblemIDX()
     EndIf  
+  Else
+    isFinded = #True
   EndIf
   
   
@@ -2402,11 +2428,38 @@ Procedure checkSourceFile(sourcefile$)
 ProcedureReturn err
 EndProcedure
 
+Procedure changeWorkFile(filename$)  
+  Protected *membuff=AllocateMemory(#HEADERSIZE)
+  Shared *FindPub_X, *FindPub_Y
+  
+  If Not OpenFile(#File1, filename$)
+    exit("[changeWorkFile] Can`t open "+filename$)
+  EndIf
+  If ReadData(#File1, *membuff, #HEADERSIZE)=#HEADERSIZE
+    
+  Else
+       exit("Can`t open "+filename$)
+  EndIf
+  If LCase(uncomressed2commpressedPub(Curve::m_gethex32(*FindPub_X)+Curve::m_gethex32(*FindPub_Y)))<>LCase(uncomressed2commpressedPub(Curve::m_gethex32(*membuff + 76)+Curve::m_gethex32(*membuff + 108)))
+    PrintN("work file pub changed from: "+LCase(uncomressed2commpressedPub(Curve::m_gethex32(*membuff + 76)+Curve::m_gethex32(*membuff + 108))))
+    PrintN("                        to: "+LCase(uncomressed2commpressedPub(Curve::m_gethex32(*FindPub_X)+Curve::m_gethex32(*FindPub_Y)))) 
+    FileSeek(#File1, 76)   
+    ;KeyX 32b - 76  
+    WriteData(#File1, *FindPub_X, 32)  
+    ;KeyY 32b - 108
+    WriteData(#File1, *FindPub_Y, 32)
+  EndIf
+        
+  
+  CloseFile(#File1)
+  FreeMemory(*membuff)
+EndProcedure  
+  
 Procedure.s savehashtable(isReset) 
   Protected i, *MemoryBuffer, *pointer, *contentpointer,  hash, offset , counterBYTEs, batchsize, sz, isSucces, writeretry, totalfreedmemory, cnt, part, np, totalsavedmb , filename$
   Protected collision.CollideStructure, dpcount, timecounter
   
-  Shared HT_total_items, *RangeB, *RangeE, *FindPub_X, *FindPub_Y, HT_mask, HT_items,  *PointerTable, *Table
+  Shared Sum_HT_total_items, HT_total_items, *RangeB, *RangeE, *FindPub_X, *FindPub_Y, HT_mask, HT_items,  *PointerTable, *Table
   Shared SETTINGS, HT_max_collisions, HT_items_with_collisions, HT_total_hashes, HT_date, HT_dead
   
       
@@ -2578,6 +2631,7 @@ Procedure.s savehashtable(isReset)
     EndIf
   EndIf
   If isReset
+    Sum_HT_total_items = Sum_HT_total_items + HT_total_items
     HT_total_items = 0
     HT_max_collisions = 0
     HT_items_with_collisions = 0
@@ -3148,9 +3202,11 @@ Repeat
       EndIf
     EndIf
     
-    *ptrforchecker = AllocateMemory(winset*48, #PB_Memory_NoClear)
+    LockMutex(checkrMutex)
+     AddElement(checker())
+     checker()\ptr = AllocateMemory(winset*48, #PB_Memory_NoClear)
     
-    err = cuMemcpyDtoH_v2(*ptrforchecker, DeviceReturnNumber+128, winset*48)
+    err = cuMemcpyDtoH_v2( checker()\ptr, DeviceReturnNumber+128, winset*48)
     If err
       exit("cuMemcpyDtoH - "+Str(err))
     EndIf    
@@ -3159,11 +3215,11 @@ Repeat
     
     
     
-    LockMutex(checkrMutex)
-    AddElement(checker())
+    
+   
     checker()\winset = winset
     checker()\gpuid = gpuid
-    checker()\ptr  = *ptrforchecker
+    
     UnlockMutex(checkrMutex)
    
     
@@ -3235,7 +3291,7 @@ EndProcedure
  
 
 Procedure checkerThread(rrr)
-  Protected NewList local.checkerStructure(), i, wintid, winset, *a, gpuid, *ptr
+  Protected NewList local.checkerStructure(), i, wintid, winset, *a, gpuid, *ptr, totalmemory
   Protected res_, NewList problem_local.i()
   Shared gpu(), checker(), checkrMutex, TableMutex, HT_dead, thr_quit, *GTable, calcMutex, SETTINGS
  
@@ -3245,7 +3301,7 @@ Procedure checkerThread(rrr)
     While ListSize(checker())=0    
       Delay(1)
     Wend
-    
+    totalmemory=0
     LockMutex(checkrMutex)
     CopyList(checker(), local())
     ClearList(checker()) 
@@ -3294,8 +3350,10 @@ Procedure checkerThread(rrr)
           EndIf
         EndIf
         UnlockMutex(TableMutex)         
-      Next i      
-      FreeMemory(*a)
+      Next i  
+      
+        totalmemory + MemorySize(local()\ptr)
+        FreeMemory(local()\ptr)
       
       If ListSize(problem_local())
         If ListSize(gpu(Str(gpuid))\problemsList())
@@ -3572,6 +3630,7 @@ Procedure timerSave(i)
         
       Else
         If SETTINGS\isSaveSplit
+          
           ResetHT()
         EndIf
       EndIf
@@ -4171,6 +4230,17 @@ Curve::m_ADDPTX64(*ZeroShiftedFindPub_X, *ZeroShiftedFindPub_Y, *ShiftedFindPub_
 ;PrintN("Zero Shifted Find X:"+Curve::m_gethex32(*ZeroShiftedFindPub_X))
 ;PrintN("Zero Shifted Find Y:"+Curve::m_gethex32(*ZeroShiftedFindPub_Y))
 
+
+
+;Make changes in workfile if need
+If SETTINGS\isSaveht
+  If FileSize(SETTINGS\htfilename$)>0
+    If SETTINGS\KangTypes = #WILD
+      changeWorkFile(SETTINGS\htfilename$)
+    EndIf
+  EndIf
+EndIf         
+
 ;launch cuda threads
 
 
@@ -4255,20 +4325,23 @@ While isruning
     eeh.f = Log(totalhash)/Log(2)
     eet.f = expop  - eeh
     infostr$ + "["+ RTrim(perf$)+"]"+Str(totalhash/#MB)+" MKeys/s"
-    If totalhash>0
-      infostr$ +"= 2^"+StrD(Log(totalhash)/Log(2),4)
-    EndIf
+    ;If totalhash>0
+      ;infostr$ +"= 2^"+StrD(Log(totalhash)/Log(2),4)
+    ;EndIf
     infostr$ + "[dead:"+Str(HT_dead)+"]"
     infostr$ + "[HT:"+StrD((HT_total_hashes * #HashTablesz * 2  + HT_total_items * #HashTableSizeItems ) / #MB,2)+"Mb"
     If HT_total_items
-      infostr$ + " DPs 2^"+StrD(Log(HT_total_items)/Log(2),2)
-      infostr$ + " OPs 2^"+StrD(Log(HT_total_items)/Log(2) + SETTINGS\DPsize,2)+"]"
+      infostr$ + " DPs 2^"+StrD(Log(HT_total_items)/Log(2),2)      
+      infostr$ + " OPs 2^"+StrD(Log(HT_total_items)/Log(2) + SETTINGS\DPsize,2)     
+      If Sum_HT_total_items>0
+        infostr$+"/"+StrD(Log(HT_total_items+Sum_HT_total_items)/Log(2) + SETTINGS\DPsize,2)
+      EndIf
+      infostr$+"]"
       If SETTINGS\maxM>0
-        If HT_total_items> Pow(2,expop - SETTINGS\DPsize) * SETTINGS\maxM 
+        If (HT_total_items>= Pow(2,expop - SETTINGS\DPsize) * SETTINGS\maxM Or (HT_total_items+Sum_HT_total_items)>=Pow(2,expop - SETTINGS\DPsize) * SETTINGS\maxM) And thr_quit = #False
           thr_quit = #True
           PrintN("")
-          PrintN("Reached limit of operations")
-          End
+          PrintN("Reached limit of operations")          
         EndIf
       EndIf
     Else
@@ -4277,7 +4350,7 @@ While isruning
     infostr$ +" t:"+getElapsedTime(Date()-workingtime)
     If totalhash>0
       infostr$ + " (Ave:"+getElapsedTime(Pow(2,eet))+") "
-      infostr$ + StrF((Date()-workingtime)*100/Pow(2,eet),0)+"%"
+      infostr$ + "m:"+StrD((HT_total_items+Sum_HT_total_items)/Pow(2,expop - SETTINGS\DPsize),3)
     EndIf
     If thr_quit = #False
       LockMutex(calcMutex)
@@ -4294,6 +4367,62 @@ Wend
 PrintN("")
 
 PrintN("Total time "+getElapsedTime(Date()-begintime))   
+While mergeFlag
+  ;await merger quit
+  Delay(1000)
+Wend
+
+;Save rest HT
+Define tempfileht$, merge.mergestructure
+If SETTINGS\isSaveht = 1 And SETTINGS\isMerge = 1 And SETTINGS\isSaveSplit = 1 And HT_total_items>0 And isFinded=#False
+  PrintN("Save rest HT")
+  LockMutex(calcMutex)      
+  If mergeFlag = 1
+    PrintN("")
+    PrintN("Merger buzzy.. await")
+  EndIf
+  UnlockMutex(calcMutex)
+  While mergeFlag=1
+    ;wait if merger buzy
+    Delay(100)
+  Wend
+  
+  LockMutex(TableMutex)     
+  tempfileht$ = savehashtable(SETTINGS\isSaveSplit)
+  UnlockMutex(TableMutex)  
+  
+  ; we need merge with previous HT file
+  If FileSize(SETTINGS\htfilename$)>0
+    ;previous ht file exist
+    If checkSourceFile(SETTINGS\htfilename$) = 0 
+      If checkSourceFile(tempfileht$)=0
+        
+        merge\filename1$ = SETTINGS\htfilename$
+        merge\filename2$ = tempfileht$
+        merge\filenameTarget$ = SETTINGS\htfilename$
+        PrintN(merge\filename1$+" "+merge\filename2$+" "+merge\filenameTarget$ )
+        mergeFlag=1
+        CreateThread(@mergeThread(),@merge)
+        While mergeFlag=1
+          ;wait if merger buzy
+          Delay(100)
+        Wend
+      EndIf
+    Else
+      ;previous file mismath of current settings
+      PrintN("Existed file ["+SETTINGS\htfilename$+"] do not match configuration=>delete")
+      If FileSize(SETTINGS\htfilename$)>0
+        DeleteFile(SETTINGS\htfilename$,#PB_FileSystem_Force)
+      EndIf
+      RenameFile(tempfileht$, SETTINGS\htfilename$)
+    EndIf
+  Else
+    RenameFile(tempfileht$, SETTINGS\htfilename$)
+  EndIf 
+  
+EndIf
+
+
 Delay(2000)
 PrintN("cuda finished ok")
 ;saveResult()
@@ -11870,14 +11999,3 @@ arch35_192end:
    
 EndDataSection
 
-
-; IDE Options = PureBasic 5.31 (Windows - x64)
-; ExecutableFormat = Console
-; CursorPosition = 3314
-; FirstLine = 2229
-; Folding = DAAEBA6Uwm+7
-; EnableThread
-; EnableXP
-; Executable = EtarkangarooTW.exe
-; DisableDebugger
-; CommandLine = -d 0 -grid 88,128 -dp 15 -rb 0x20000000000000000 -re 0x7ffffffffffffffff -pub 029a3a2ae3ad3858cf49421e6ff547598bb8da72c2bce50490067d9ce7b2e2dc90
